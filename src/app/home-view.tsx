@@ -35,7 +35,7 @@ function Hero() {
       {/* Full-bleed looping background video */}
       <motion.div style={{ y: vidY }} className="pointer-events-none absolute inset-0 -z-10">
         <video
-          className="h-full w-full object-cover opacity-[0.5] mix-blend-multiply"
+          className="h-full w-full object-cover opacity-[0.65] mix-blend-multiply"
           autoPlay
           muted
           loop
@@ -46,12 +46,13 @@ function Hero() {
           <source src="/media/hero.webm" type="video/webm" />
           <source src="/media/hero.mp4" type="video/mp4" />
         </video>
-        {/* Silk veil so the cream theme + ink text stay legible over the video */}
+        {/* Silk veil: densest behind the central text column, thinning toward the
+            edges so the video reads clearly in the periphery without fighting the copy */}
         <div
           className="absolute inset-0"
           style={{
             background:
-              "radial-gradient(75% 60% at 50% 38%, oklch(0.975 0.022 88 / 0.55), oklch(0.975 0.022 88 / 0.86) 70%, oklch(0.975 0.022 88 / 0.96) 100%)",
+              "radial-gradient(80% 72% at 50% 44%, oklch(0.975 0.022 88 / 0.82), oklch(0.975 0.022 88 / 0.5) 60%, oklch(0.975 0.022 88 / 0.28) 100%)",
           }}
         />
         <div className="absolute inset-x-0 bottom-0 h-48 bg-gradient-to-b from-transparent to-[var(--silk)]" />
