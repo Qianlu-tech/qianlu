@@ -3,16 +3,12 @@
 import { useEffect, useRef, useState } from "react";
 import { toast } from "sonner";
 import { useI18n } from "@/lib/i18n";
-import {
-  useWallet,
-  formatAddress,
-  explorerAddressUrl,
-  TARGET_CHAIN,
-  NoWalletError,
-} from "@/lib/wallet";
+import { useWallet, formatAddress, explorerAddressUrl, TARGET_CHAIN } from "@/lib/wallet";
 
 /**
- * Connect / connected / wrong-network wallet control for BNB Smart Chain.
+ * Single "Connect Wallet" control for BNB Smart Chain. One click opens the
+ * unified AppKit modal (browser extensions, mobile wallets, WalletConnect QR);
+ * after the user picks a wallet they authorize with a sign-in signature.
  * Used in the desktop nav and the mobile menu (pass a matching `className`).
  */
 export function WalletButton({
@@ -44,21 +40,6 @@ export function WalletButton({
   }, [open]);
 
   const dot = <span className="h-1.5 w-1.5 rounded-full bg-jade animate-pulse-glow" />;
-
-  async function handleConnect() {
-    try {
-      await connect();
-      toast.success(t("common.walletConnected"));
-      onAction?.();
-    } catch (err) {
-      if (err instanceof NoWalletError) {
-        toast.error(t("common.noWallet"));
-      } else if ((err as { code?: number })?.code !== 4001) {
-        // 4001 = user rejected; stay quiet for that.
-        toast.error((err as Error)?.message ?? "Connection failed");
-      }
-    }
-  }
 
   async function handleSwitch() {
     try {
@@ -146,10 +127,10 @@ export function WalletButton({
     );
   }
 
-  // --- Disconnected ---
+  // --- Disconnected / authorizing: one button opens the unified wallet modal ---
   return (
     <button
-      onClick={handleConnect}
+      onClick={connect}
       disabled={status === "connecting"}
       className={`inline-flex items-center gap-2 rounded-full bg-foreground/90 px-4 py-2 text-xs font-semibold tracking-wide text-background transition-colors hover:bg-foreground disabled:opacity-60 ${className}`}
     >
