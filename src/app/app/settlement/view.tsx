@@ -4,6 +4,8 @@ import { motion } from "motion/react";
 import { Reveal } from "@/components/qianlu/Reveal";
 import { AppSubnav } from "@/components/qianlu/AppSubnav";
 import { useI18n } from "@/lib/i18n";
+import { useSettlementRecords, useSettlementStats, useSettlementLifecycle } from "@/lib/queries";
+import type { LabelValue } from "@/lib/api";
 
 const RECORDS = [
   { date: "2026-05-21", from: "0x9c4f…E1a2", to: "0x71b3…44dE", amt: 8420, asset: "USDT", tx: "0xd14a…f0b9" },
@@ -16,12 +18,13 @@ const RECORDS = [
 
 export default function SettlementView() {
   const { t } = useI18n();
-  const stats = t("settlement.stats") as { l: string; v: string }[];
-  const lifecycle = t("settlement.lifecycle") as string[];
+  const records = useSettlementRecords(RECORDS);
+  const stats = useSettlementStats(t("settlement.stats") as LabelValue[]);
+  const lifecycle = useSettlementLifecycle(t("settlement.lifecycle") as string[]);
 
   function exportCsv() {
     const header = ["date", "sender", "receiver", "amount", "asset", "tx_hash", "status"];
-    const lines = RECORDS.map((r) => [r.date, r.from, r.to, r.amt, r.asset, r.tx, "settled"].join(","));
+    const lines = records.map((r) => [r.date, r.from, r.to, r.amt, r.asset, r.tx, "settled"].join(","));
     const csv = [header.join(","), ...lines].join("\n");
     const url = URL.createObjectURL(new Blob([csv], { type: "text/csv" }));
     const a = document.createElement("a");
@@ -85,7 +88,7 @@ export default function SettlementView() {
                     <div className="col-span-2">{t("settlement.colTx")}</div>
                     <div className="col-span-2 text-right">{t("settlement.colStatus")}</div>
                   </div>
-                  {RECORDS.map((r, i) => (
+                  {records.map((r, i) => (
                     <motion.div
                       key={i}
                       initial={{ opacity: 0, x: -8 }}

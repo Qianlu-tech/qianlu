@@ -5,15 +5,19 @@ import { Reveal } from "@/components/qianlu/Reveal";
 import { AppSubnav } from "@/components/qianlu/AppSubnav";
 import { useI18n } from "@/lib/i18n";
 import { PieChart, Pie, Cell, ResponsiveContainer, Tooltip } from "recharts";
+import { useTokenOverview } from "@/lib/queries";
+import type { TokenTier, TokenUtility, TokenDist } from "@/lib/api";
 
 const DIST_COLORS = ["oklch(0.72 0.17 70)", "oklch(0.86 0.13 82)", "oklch(0.58 0.16 65)", "oklch(0.62 0.11 175)"];
 
 export default function TokenView() {
   const { t } = useI18n();
   const [staked, setStaked] = useState(10000);
-  const tiers = t("token.tiers") as { stake: string; off: string; pay: string }[];
-  const utility = t("token.utility") as { t: string; d: string }[];
-  const dist = t("token.dist") as { l: string; v: number }[];
+  const { tiers, utility, dist } = useTokenOverview({
+    tiers: t("token.tiers") as TokenTier[],
+    utility: t("token.utility") as TokenUtility[],
+    dist: t("token.dist") as TokenDist[],
+  });
 
   // current fee from staked amount
   const feePct = staked >= 100000 ? 0.08 : staked >= 10000 ? 0.12 : staked >= 1000 ? 0.16 : 0.2;

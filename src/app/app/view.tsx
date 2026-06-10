@@ -10,6 +10,7 @@ import { Reveal } from "@/components/qianlu/Reveal";
 import { AppSubnav } from "@/components/qianlu/AppSubnav";
 import { useI18n } from "@/lib/i18n";
 import { useWallet, formatAddress } from "@/lib/wallet";
+import { useDashboardStats, useDashboardActivity, useVolume, useCorridors } from "@/lib/queries";
 
 const VOL = Array.from({ length: 30 }, (_, i) => ({
   d: i + 1,
@@ -26,8 +27,10 @@ const CORR = [
 
 export default function DashboardView() {
   const { t } = useI18n();
-  const stats = t("dashboard.stats") as { l: string; v: string; d: string }[];
-  const activity = t("dashboard.activity") as { t: string; d: string; k: string }[];
+  const stats = useDashboardStats(t("dashboard.stats") as { l: string; v: string; d: string }[]);
+  const activity = useDashboardActivity(t("dashboard.activity") as { t: string; d: string; k: string }[]);
+  const vol = useVolume(VOL);
+  const corr = useCorridors(CORR);
 
   return (
     <section className="px-6 pt-32 pb-12">
@@ -51,7 +54,7 @@ export default function DashboardView() {
               <PanelHead title={t("dashboard.volumeTitle")} sub={t("dashboard.volumeSub")} />
               <div className="h-64 mt-4">
                 <ResponsiveContainer>
-                  <AreaChart data={VOL} margin={{ top: 5, right: 10, left: 0, bottom: 0 }}>
+                  <AreaChart data={vol} margin={{ top: 5, right: 10, left: 0, bottom: 0 }}>
                     <defs>
                       <linearGradient id="g1" x1="0" y1="0" x2="0" y2="1">
                         <stop offset="0%" stopColor="oklch(0.72 0.17 70)" stopOpacity={0.6} />
@@ -82,7 +85,7 @@ export default function DashboardView() {
               <PanelHead title={t("dashboard.heatmapTitle")} sub={t("dashboard.heatmapSub")} />
               <div className="h-56 mt-4">
                 <ResponsiveContainer>
-                  <BarChart data={CORR}>
+                  <BarChart data={corr}>
                     <CartesianGrid strokeDasharray="2 4" stroke="oklch(0.86 0.05 80 / 0.5)" />
                     <XAxis dataKey="n" stroke="oklch(0.45 0.04 70)" fontSize={10} tickLine={false} axisLine={false} />
                     <YAxis stroke="oklch(0.45 0.04 70)" fontSize={10} tickLine={false} axisLine={false} />

@@ -13,7 +13,11 @@ import {
 import { WagmiAdapter } from "@reown/appkit-adapter-wagmi";
 import { bsc, bscTestnet, type AppKitNetwork } from "@reown/appkit/networks";
 import { useAppKit } from "@reown/appkit/react";
+import { useRouter } from "next/navigation";
+import { useQueryClient } from "@tanstack/react-query";
+import { toast } from "sonner";
 import { useAccount, useDisconnect, useSignMessage, useSwitchChain } from "wagmi";
+import { apiEnabled, authApi, setToken, clearToken, hasValidToken, ApiError } from "./api";
 
 /* ------------------------------------------------------------------ */
 /*  BNB Smart Chain config + AppKit / wagmi setup                      */
@@ -81,6 +85,18 @@ function buildSignInMessage(address: string, nonce: string, issuedAt: string): s
   ].join("\n");
 }
 
+/** Build a sign-in message locally (used only when no backend is configured). */
+function buildLocalMessage(address: string): string {
+  const nonce = Math.random().toString(36).slice(2) + Date.now().toString(36);
+  return buildSignInMessage(address, nonce, new Date().toISOString());
+}
+
+/** Did the user dismiss the wallet signature prompt (vs. a real failure)? */
+function isUserRejection(err: unknown): boolean {
+  const e = err as { code?: number; name?: string; message?: string } | null;
+  return e?.code === 4001 || /reject|denied|cancell?ed/i.test(e?.name ?? e?.message ?? "");
+}
+
 /** Truncate an address for display: 0x9c4f…E1a2 */
 export function formatAddress(addr?: string | null, head = 6, tail = 4): string {
   if (!addr) return "";
@@ -118,9 +134,19 @@ export function WalletProvider({ children }: { children: ReactNode }) {
   const { disconnectAsync } = useDisconnect();
   const { switchChainAsync } = useSwitchChain();
   const { signMessageAsync } = useSignMessage();
+  const queryClient = useQueryClient();
+  const router = useRouter();
 
   const [signedAddress, setSignedAddress] = useState<string | null>(null);
   const prompting = useRef(false);
+
+  // When the authenticated identity changes (sign-in completes, account switch,
+  // disconnect), refetch all queries so authed endpoints pick up — or drop — the
+  // JWT. Without this, data fetched before sign-in resolves to the placeholder
+  // fallback (401 → catch) and never refetches once the token lands.
+  useEffect(() => {
+    queryClient.invalidateQueries();
+  }, [signedAddress, queryClient]);
 
   // After a wallet connects via the modal, authorize the session with a
   // signature (SIWE-style). Restores silently if already signed for this account.
@@ -132,25 +158,56 @@ export function WalletProvider({ children }: { children: ReactNode }) {
         setSignedAddress(null);
         return;
       }
+      // Restore silently only if we ALSO still hold a non-expired JWT — a stored
+      // session with a stale/missing token would 401 every authed call and fall
+      // back to placeholder data. Otherwise drop through and re-sign.
       const session = readSession();
-      if (session && session.address.toLowerCase() === address.toLowerCase()) {
+      if (session && session.address.toLowerCase() === address.toLowerCase() && hasValidToken()) {
         if (!cancelled) setSignedAddress(address);
         return;
       }
       if (prompting.current) return;
       prompting.current = true;
+      const backendAuth = apiEnabled();
       try {
-        const nonce = Math.random().toString(36).slice(2) + Date.now().toString(36);
-        const issuedAt = new Date().toISOString();
-        const message = buildSignInMessage(address, nonce, issuedAt);
-        await signMessageAsync({ message });
+        // 1. Message to sign. With the backend live we MUST sign its issued nonce
+        //    — a locally-built message can't be verified server-side (unknown
+        //    nonce → 401), which previously left the user "connected" with no JWT
+        //    and silently rendered placeholder data.
+        const message = backendAuth
+          ? (await authApi.nonce(address, chainId ?? TARGET_CHAIN.chainId)).message
+          : buildLocalMessage(address);
+
+        // 2. Sign it (wallet prompt — this is the explicit authorization).
+        const signature = await signMessageAsync({ message });
         if (cancelled) return;
-        writeSession({ address, issuedAt });
+
+        // 3. Exchange the signature for a JWT. If this fails we are NOT signed in
+        //    — let it throw so the catch cleans up rather than faking a session.
+        if (backendAuth) {
+          setToken((await authApi.verify(address, message, signature)).token);
+        }
+
+        if (cancelled) return;
+        writeSession({ address, issuedAt: new Date().toISOString() });
         setSignedAddress(address);
-      } catch {
-        // Rejected the signature → don't leave a half-connected wallet around.
+        // Fresh sign-in (not a silent restore) → take the user to the app.
+        router.push("/app");
+      } catch (err) {
+        // Either the user dismissed the prompt, or backend auth failed. Don't
+        // leave a half-connected (token-less) session that renders demo data.
         clearSession();
+        clearToken();
         setSignedAddress(null);
+        if (!isUserRejection(err)) {
+          // Surface the real reason instead of silently degrading to mock data.
+          const reason =
+            err instanceof ApiError
+              ? `${err.code} (${err.status})`
+              : (err as Error)?.message ?? "unknown error";
+          console.error("[wallet] SIWE sign-in failed:", err);
+          toast.error(`Wallet sign-in failed — ${reason}`);
+        }
         try {
           await disconnectAsync();
         } catch {
@@ -172,6 +229,7 @@ export function WalletProvider({ children }: { children: ReactNode }) {
 
   const disconnect = useCallback(async () => {
     clearSession();
+    clearToken();
     setSignedAddress(null);
     try {
       await disconnectAsync();

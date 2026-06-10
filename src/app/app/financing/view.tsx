@@ -6,9 +6,18 @@ import { useI18n } from "@/lib/i18n";
 import {
   ResponsiveContainer, RadialBar, RadialBarChart, PolarAngleAxis,
 } from "recharts";
+import { useFinancingPositions } from "@/lib/queries";
+import type { FinancingPosition } from "@/lib/api";
+
+const POSITIONS: FinancingPosition[] = [
+  { id: "QL-0821", coll: "$24,500 USDT-INV", bor: "$15,190 USDT", apy: "5.4%" },
+  { id: "QL-0799", coll: "$48,000 FDUSD-INV", bor: "$29,760 USDT", apy: "5.1%" },
+  { id: "QL-0782", coll: "$12,400 USDT-INV", bor: "$7,440 USDT", apy: "5.4%" },
+];
 
 export default function FinancingView() {
   const { t } = useI18n();
+  const positions = useFinancingPositions(POSITIONS);
   return (
     <section className="px-6 pt-32 pb-12">
       <AppSubnav />
@@ -46,11 +55,7 @@ export default function FinancingView() {
               <div className="font-display text-xl font-semibold">{t("financing.positionsTitle")}</div>
               <div className="font-mono text-[10px] tracking-widest text-muted-foreground">{t("financing.positionsSub")}</div>
               <div className="mt-6 grid gap-3">
-                {[
-                  { id: "QL-0821", coll: "$24,500 USDT-INV", bor: "$15,190 USDT", apy: "5.4%" },
-                  { id: "QL-0799", coll: "$48,000 FDUSD-INV", bor: "$29,760 USDT", apy: "5.1%" },
-                  { id: "QL-0782", coll: "$12,400 USDT-INV", bor: "$7,440 USDT", apy: "5.4%" },
-                ].map((p) => (
+                {positions.map((p) => (
                   <div key={p.id} className="grid grid-cols-12 items-center rounded-2xl glass px-5 py-4 gap-2">
                     <div className="col-span-2 font-mono text-sm">{p.id}</div>
                     <div className="col-span-4 font-mono text-xs text-muted-foreground">{p.coll}</div>

@@ -1,5 +1,6 @@
 import type { Metadata } from "next";
 import { InvoicePay } from "@/components/qianlu/InvoicePay";
+import { api, apiEnabled } from "@/lib/api";
 
 export const metadata: Metadata = {
   title: "Pay Invoice · Qianlu",
@@ -17,8 +18,21 @@ function hash(s: string) {
 export default async function Page({ params }: { params: Promise<{ id: string }> }) {
   const { id } = await params;
   const h = hash(id);
-  const amount = 2000 + (h % 48000);
-  const from = `0x${h.toString(16).padStart(4, "0").slice(0, 4)}…E1a2`;
-  const to = `0x${(h * 7).toString(16).padStart(4, "0").slice(0, 4)}…44dE`;
+  // Deterministic demo fallback for when the backend invoice isn't available.
+  let amount = 2000 + (h % 48000);
+  let from = `0x${h.toString(16).padStart(4, "0").slice(0, 4)}…E1a2`;
+  let to = `0x${(h * 7).toString(16).padStart(4, "0").slice(0, 4)}…44dE`;
+
+  if (apiEnabled()) {
+    try {
+      const inv = await api.invoice(id); // public endpoint, no auth
+      amount = inv.amount;
+      from = inv.from;
+      to = inv.to;
+    } catch {
+      /* backend not live / not found → keep deterministic demo */
+    }
+  }
+
   return <InvoicePay id={id} amount={amount} from={from} to={to} />;
 }

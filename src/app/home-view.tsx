@@ -5,6 +5,8 @@ import { motion, useScroll, useTransform } from "motion/react";
 import { useRef, useState } from "react";
 import { Reveal } from "@/components/qianlu/Reveal";
 import { useI18n } from "@/lib/i18n";
+import { usePublicStats, usePublicCorridors } from "@/lib/queries";
+import type { HomeStat, HomeCorridor } from "@/lib/api";
 
 export default function HomeView() {
   return (
@@ -177,7 +179,7 @@ function BrushDivider() {
 
 function Stats() {
   const { t } = useI18n();
-  const stats = t("home.stats") as { v: string; l: string }[];
+  const stats = usePublicStats(t("home.stats") as HomeStat[]);
   return (
     <section className="px-6">
       <div className="mx-auto max-w-7xl">
@@ -202,7 +204,7 @@ function Stats() {
 
 function Corridors() {
   const { t } = useI18n();
-  const corridors = t("home.corridors") as { from: string; to: string; asset: string; vol: string; fee: string }[];
+  const corridors = usePublicCorridors(t("home.corridors") as HomeCorridor[]);
   return (
     <section className="px-6 pt-32">
       <div className="mx-auto max-w-7xl">

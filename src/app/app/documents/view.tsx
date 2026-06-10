@@ -4,11 +4,13 @@ import { motion } from "motion/react";
 import { Reveal } from "@/components/qianlu/Reveal";
 import { AppSubnav } from "@/components/qianlu/AppSubnav";
 import { useI18n } from "@/lib/i18n";
+import { useDocuments, useDocumentsStorage } from "@/lib/queries";
+import type { DocRow, KV } from "@/lib/api";
 
 export default function DocumentsView() {
   const { t } = useI18n();
-  const stored = t("documents.stored") as { k: string; v: string }[];
-  const docs = t("documents.docs") as { name: string; type: string; hash: string; time: string }[];
+  const stored = useDocumentsStorage(t("documents.stored") as KV[]);
+  const docs = useDocuments(t("documents.docs") as DocRow[]);
 
   return (
     <section className="px-6 pt-32 pb-12">

@@ -44,6 +44,13 @@ const en = {
     platform: "PLATFORM",
     backToApp: "Back to dashboard",
     period: ".",
+    gateTitle: "Connect your wallet",
+    gateDesc:
+      "Sign in with your BNB Chain wallet to open your dashboard. No KYC, no email — your wallet is your identity.",
+    gateAuthorizing: "Confirm in your wallet",
+    gateAuthorizingDesc:
+      "Approve the signature request to authorize Qianlu. It's off-chain and costs no gas.",
+    gateSwitchDesc: "Your wallet is on the wrong network. Switch to BNB Smart Chain to continue.",
   },
   nav: {
     home: "Home",
@@ -359,6 +366,11 @@ const zh: typeof en = {
     platform: "平台",
     backToApp: "返回仪表盘",
     period: "。",
+    gateTitle: "连接你的钱包",
+    gateDesc: "使用你的 BNB 链钱包登录以打开仪表盘。无需 KYC，无需邮箱 —— 你的钱包即身份。",
+    gateAuthorizing: "在钱包中确认",
+    gateAuthorizingDesc: "批准签名请求以授权 Qianlu。该操作为链下签名，不消耗 Gas。",
+    gateSwitchDesc: "你的钱包当前网络不正确。请切换到 BNB 智能链以继续。",
   },
   nav: {
     home: "首页",

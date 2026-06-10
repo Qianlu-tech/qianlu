@@ -5,11 +5,13 @@ import { motion } from "motion/react";
 import { Reveal } from "@/components/qianlu/Reveal";
 import { AppSubnav } from "@/components/qianlu/AppSubnav";
 import { useI18n } from "@/lib/i18n";
+import { usePaymentsRecents } from "@/lib/queries";
 
 const RECENTS = ["0x71b3…44dE", "0x4a2f…91Ab", "0x8e02…03cF"];
 
 export default function SendView() {
   const { t } = useI18n();
+  const recents = usePaymentsRecents(RECENTS);
   const [recipient, setRecipient] = useState("");
   const [amount, setAmount] = useState("");
   const [asset, setAsset] = useState<"USDT" | "FDUSD" | "USDC">("USDT");
@@ -59,7 +61,7 @@ export default function SendView() {
               <span className="font-mono text-[10px] tracking-widest text-muted-foreground">
                 {t("sendpage.quickRecipients")}
               </span>
-              {RECENTS.map((r) => (
+              {recents.map((r) => (
                 <button
                   key={r}
                   onClick={() => setRecipient(r)}

@@ -11,6 +11,7 @@ next-env.d.ts
 dist/
 .turbo/
 .tanstack/
+*.tsbuildinfo
 
 # Environment / secrets
 .env

@@ -22,17 +22,22 @@ import {
 
 // Initialize the AppKit modal once (client). Renders the unified wallet picker
 // (browser extensions, mobile wallets, WalletConnect QR) on connect().
-if (projectId) {
-  createAppKit({
-    adapters: [wagmiAdapter],
-    networks,
-    defaultNetwork,
-    projectId,
-    metadata: appKitMetadata,
-    themeMode: "light",
-    features: { analytics: false, email: false, socials: [] },
-  });
-}
+//
+// Call this UNCONDITIONALLY (even when projectId is empty). The `useAppKit`
+// hook throws if `createAppKit` was never called, which crashes the static
+// prerender of pages like `/_not-found` on Vercel when the env var is missing.
+// With an empty projectId AppKit doesn't throw — it just registers the modal
+// and shows a runtime alert — so the build stays green and wallet connect lights
+// up as soon as NEXT_PUBLIC_WALLETCONNECT_PROJECT_ID is configured.
+createAppKit({
+  adapters: [wagmiAdapter],
+  networks,
+  defaultNetwork,
+  projectId,
+  metadata: appKitMetadata,
+  themeMode: "light",
+  features: { analytics: false, email: false, socials: [] },
+});
 
 export function Providers({ children }: { children: ReactNode }) {
   const [queryClient] = useState(() => new QueryClient());

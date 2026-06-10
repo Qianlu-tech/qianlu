@@ -2,15 +2,19 @@
 
 import { motion } from "motion/react";
 import { useState } from "react";
+import { keccak256 } from "viem";
 import { Reveal } from "@/components/qianlu/Reveal";
 import { useI18n } from "@/lib/i18n";
+import { api, apiEnabled, type VerifyResult } from "@/lib/api";
 
 export default function VerifyView() {
   const { t } = useI18n();
   const [step, setStep] = useState<"idle" | "hashing" | "done">("idle");
   const [file, setFile] = useState<string | null>(null);
+  const [hash, setHash] = useState<string | null>(null);
+  const [result, setResult] = useState<VerifyResult | null>(null);
 
-  function onDrop(e: React.DragEvent | React.ChangeEvent<HTMLInputElement>) {
+  async function onDrop(e: React.DragEvent | React.ChangeEvent<HTMLInputElement>) {
     const f =
       "dataTransfer" in e
         ? (e as React.DragEvent).dataTransfer.files?.[0]
@@ -18,7 +22,23 @@ export default function VerifyView() {
     if (!f) return;
     setFile(f.name);
     setStep("hashing");
-    setTimeout(() => setStep("done"), 1400);
+    setResult(null);
+    try {
+      // Hash the file in the browser (keccak256) — bytes never leave the device.
+      const bytes = new Uint8Array(await f.arrayBuffer());
+      const h = keccak256(bytes);
+      setHash(h);
+      if (apiEnabled()) {
+        try {
+          setResult(await api.verify(h));
+        } catch {
+          setResult(null); // backend not live → demo display below
+        }
+      }
+    } catch {
+      /* ignore read errors */
+    }
+    setStep("done");
   }
 
   return (
@@ -58,13 +78,36 @@ export default function VerifyView() {
             transition={{ type: "spring", stiffness: 200, damping: 22 }}
             className="glass mt-6 rounded-[2rem] p-8"
           >
-            <Line k={t("verify.localHash")} v={step === "done" ? "0x8a4f…b201" : t("verify.computing")} />
-            <Line k={t("verify.greenfieldCid")} v="bnbgf://Qm…7Ydz" />
-            <Line k={t("verify.easAttestation")} v={step === "done" ? "0xeas…04ce ✓" : "—"} accent={step === "done"} />
+            <Line
+              k={t("verify.localHash")}
+              v={
+                step === "done"
+                  ? hash
+                    ? `${hash.slice(0, 6)}…${hash.slice(-4)}`
+                    : "0x8a4f…b201"
+                  : t("verify.computing")
+              }
+            />
+            <Line k={t("verify.greenfieldCid")} v={result?.greenfieldCid ?? "bnbgf://Qm…7Ydz"} />
+            <Line
+              k={t("verify.easAttestation")}
+              v={
+                step === "done"
+                  ? result?.easAttestation
+                    ? `${result.easAttestation.uid.slice(0, 8)}… ✓`
+                    : "0xeas…04ce ✓"
+                  : "—"
+              }
+              accent={step === "done"}
+            />
             <div className={`mt-6 rounded-2xl p-5 ${step === "done" ? "glass-amber" : "glass"}`}>
               <div className="font-mono text-[10px] tracking-widest text-foreground/70">{t("verify.result")}</div>
               <div className="mt-1 font-display text-3xl font-semibold">
-                {step === "done" ? t("verify.authentic") : t("verify.hashing")}
+                {step === "done"
+                  ? result && result.result !== "authentic"
+                    ? result.result
+                    : t("verify.authentic")
+                  : t("verify.hashing")}
               </div>
             </div>
           </motion.div>

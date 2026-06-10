@@ -5,6 +5,8 @@ import { motion } from "motion/react";
 import { Reveal } from "@/components/qianlu/Reveal";
 import { AppSubnav } from "@/components/qianlu/AppSubnav";
 import { useI18n } from "@/lib/i18n";
+import { useInvoices } from "@/lib/queries";
+import type { InvoiceRow } from "@/lib/api";
 
 const INV = [
   { id: "QL-0834", to: "0x71b3…44dE", amt: 12480, asset: "USDT", status: "due", days: 4 },
@@ -23,6 +25,7 @@ const COLORS: Record<string, string> = {
 
 export default function InvoicesView() {
   const { t } = useI18n();
+  const rows = useInvoices(INV as unknown as InvoiceRow[]);
   return (
     <section className="px-6 pt-32 pb-12">
       <AppSubnav />
@@ -50,7 +53,7 @@ export default function InvoicesView() {
               <div className="col-span-2">{t("invoices.colAsset")}</div>
               <div className="col-span-2 text-right">{t("invoices.colStatus")}</div>
             </div>
-            {INV.map((r, i) => (
+            {rows.map((r, i) => (
               <motion.div
                 key={r.id}
                 initial={{ opacity: 0, x: -10 }}
