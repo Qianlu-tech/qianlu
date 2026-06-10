@@ -1,7 +1,9 @@
 "use client";
 
+import { useEffect, useState } from "react";
 import Link from "next/link";
 import { motion } from "motion/react";
+import { toast } from "sonner";
 import {
   Area, AreaChart, ResponsiveContainer, Tooltip, XAxis, YAxis,
   BarChart, Bar, CartesianGrid,
@@ -11,6 +13,11 @@ import { AppSubnav } from "@/components/qianlu/AppSubnav";
 import { useI18n } from "@/lib/i18n";
 import { useWallet, formatAddress } from "@/lib/wallet";
 import { useDashboardStats, useDashboardActivity, useVolume, useCorridors } from "@/lib/queries";
+import { useSendPayment } from "@/lib/use-payments";
+import { txUrl } from "@/lib/chain";
+import type { Asset } from "@/lib/api";
+
+const ASSETS: Asset[] = ["USDT", "FDUSD", "USDC"];
 
 const VOL = Array.from({ length: 30 }, (_, i) => ({
   d: i + 1,
@@ -164,34 +171,104 @@ function PanelHead({ title, sub }: { title: string; sub?: string }) {
 
 function QuickSend() {
   const { t } = useI18n();
+  const [recipient, setRecipient] = useState("");
+  const [amount, setAmount] = useState("");
+  const [asset, setAsset] = useState<Asset>("USDT");
+  const { phase, txHash, error, send, reset } = useSendPayment();
+
+  const amt = parseFloat(amount) || 0;
+  const ready = !!recipient && amt > 0;
+  const busy = phase === "preflight" || phase === "sign" || phase === "mining";
+  const sent = phase === "sent";
+
+  useEffect(() => {
+    if (phase === "error" && error) toast.error(error);
+  }, [phase, error]);
+
+  function onClick() {
+    if (sent) {
+      reset();
+      setRecipient("");
+      setAmount("");
+      return;
+    }
+    if (ready) void send({ to: recipient, amount, asset });
+  }
+
+  const label = sent
+    ? "✓ Sent — send another"
+    : phase === "preflight"
+    ? "Checking…"
+    : phase === "sign"
+    ? "Confirm in wallet…"
+    : phase === "mining"
+    ? t("sendpage.sendingBtn")
+    : t("dashboard.sendArrow");
+
   return (
     <div className="mt-4 space-y-3">
-      <Field label={t("dashboard.fRecipient")} mono placeholder="0x… or Basename" />
-      <div className="grid grid-cols-3 gap-2">
-        <Field label={t("dashboard.fAmount")} mono placeholder="0.00" />
-        <Field label={t("dashboard.fAsset")} value="USDT" mono />
-        <Field label={t("dashboard.fFee")} value="0.20%" mono />
+      <label className="block">
+        <span className="font-mono text-[10px] tracking-widest text-muted-foreground">{t("dashboard.fRecipient")}</span>
+        <input
+          value={recipient}
+          onChange={(e) => setRecipient(e.target.value)}
+          disabled={busy}
+          placeholder="0x…"
+          spellCheck={false}
+          className="mt-1 w-full rounded-xl glass px-3 py-2.5 text-sm font-mono outline-none focus:ring-2 focus:ring-primary/50"
+        />
+      </label>
+      <div className="grid grid-cols-2 gap-2">
+        <label className="block">
+          <span className="font-mono text-[10px] tracking-widest text-muted-foreground">{t("dashboard.fAmount")}</span>
+          <input
+            type="number"
+            inputMode="decimal"
+            value={amount}
+            onChange={(e) => setAmount(e.target.value)}
+            disabled={busy}
+            placeholder="0.00"
+            className="mt-1 w-full rounded-xl glass px-3 py-2.5 text-sm font-mono outline-none focus:ring-2 focus:ring-primary/50"
+          />
+        </label>
+        <label className="block">
+          <span className="font-mono text-[10px] tracking-widest text-muted-foreground">{t("dashboard.fAsset")}</span>
+          <select
+            value={asset}
+            onChange={(e) => setAsset(e.target.value as Asset)}
+            disabled={busy}
+            className="mt-1 w-full rounded-xl glass px-3 py-2.5 text-sm font-mono outline-none focus:ring-2 focus:ring-primary/50"
+          >
+            {ASSETS.map((a) => (
+              <option key={a} value={a}>
+                {a}
+              </option>
+            ))}
+          </select>
+        </label>
       </div>
-      <button className="w-full rounded-full py-3 font-semibold text-primary-foreground"
-        style={{ background: "linear-gradient(135deg, oklch(0.72 0.17 70), oklch(0.58 0.16 65))" }}>
-        {t("dashboard.sendArrow")}
+      <button
+        onClick={onClick}
+        disabled={!sent && (!ready || busy)}
+        className="w-full rounded-full py-3 font-semibold text-primary-foreground disabled:opacity-40 transition-opacity"
+        style={{ background: "linear-gradient(135deg, oklch(0.72 0.17 70), oklch(0.58 0.16 65))" }}
+      >
+        {label}
       </button>
-      <div className="font-mono text-[10px] tracking-widest text-center text-muted-foreground">
-        {t("dashboard.settlesIn")}
-      </div>
+      {sent && txHash ? (
+        <a
+          href={txUrl(txHash)}
+          target="_blank"
+          rel="noreferrer"
+          className="block text-center font-mono text-[10px] tracking-widest text-primary hover:underline"
+        >
+          {formatAddress(txHash, 8, 6)} ↗ BscScan
+        </a>
+      ) : (
+        <div className="font-mono text-[10px] tracking-widest text-center text-muted-foreground">
+          {t("dashboard.settlesIn")}
+        </div>
+      )}
     </div>
-  );
-}
-
-function Field({ label, placeholder, value, mono }: { label: string; placeholder?: string; value?: string; mono?: boolean }) {
-  return (
-    <label className="block">
-      <span className="font-mono text-[10px] tracking-widest text-muted-foreground">{label}</span>
-      <input
-        defaultValue={value}
-        placeholder={placeholder}
-        className={`mt-1 w-full rounded-xl glass px-3 py-2.5 text-sm outline-none focus:ring-2 focus:ring-primary/50 ${mono ? "font-mono" : ""}`}
-      />
-    </label>
   );
 }

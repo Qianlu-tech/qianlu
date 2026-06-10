@@ -51,13 +51,16 @@ export class ApiError extends Error {
   }
 }
 
-type FetchOpts = { method?: string; body?: unknown; signal?: AbortSignal };
+type FetchOpts = { method?: string; body?: unknown; signal?: AbortSignal; idempotencyKey?: string };
 
 export async function apiFetch<T>(path: string, opts: FetchOpts = {}): Promise<T> {
   if (!API_BASE) throw new ApiError("API base URL not configured", "NO_API_BASE", 0);
   const headers: Record<string, string> = { "Content-Type": "application/json" };
   const token = getToken();
   if (token) headers["Authorization"] = `Bearer ${token}`;
+  // Dedupe wallet/chain retries server-side (writes are retried after a flaky
+  // broadcast); the txHash is a natural idempotency key for payments.
+  if (opts.idempotencyKey) headers["Idempotency-Key"] = opts.idempotencyKey;
 
   const res = await fetch(`${API_BASE}${path}`, {
     method: opts.method ?? "GET",
@@ -91,7 +94,7 @@ export async function apiFetch<T>(path: string, opts: FetchOpts = {}): Promise<T
 
 export type Asset = "USDT" | "FDUSD" | "USDC";
 export type InvoiceRow = { id: string; to: string; amt: number; asset: string; status: string; days: number };
-export type InvoiceDetail = { id: string; amount: number; from: string; to: string; asset?: Asset };
+export type InvoiceDetail = { id: string; amount: number; from: string; to: string; asset?: Asset; status?: string };
 export type Stat = { l: string; v: string; d: string };
 export type Activity = { t: string; d: string; k: string };
 export type VolumePoint = { d: number; v: number };
@@ -114,6 +117,21 @@ export type VerifyResult = {
   easAttestation?: { uid: string; attester: string; schema: string; time: string };
   result: "authentic" | "unknown" | "revoked";
 };
+
+/* ----- payments (real on-chain transfers, recorded after the receipt) ----- */
+export type PaymentStatus = "pending" | "confirmed" | "failed";
+/** Returned by GET /payments/:txHash once the indexer confirms the transfer. */
+export type Settlement = {
+  date: string;
+  from: string;
+  to: string;
+  amount: number;
+  asset: string;
+  txHash: string;
+  status: string; // inner literal "settled" — distinct from PaymentStatus; don't key UI off it
+};
+export type CreatedPayment = { txHash: string; status: PaymentStatus; chainId: number };
+export type PaymentState = { status: PaymentStatus; settlement: Settlement | null };
 
 const unwrapItems = <T>(p: Promise<{ items: T[] }>) => p.then((r) => r.items);
 
@@ -151,4 +169,25 @@ export const api = {
   publicCorridors: () => unwrapItems(apiFetch<{ items: HomeCorridor[] }>("/public/corridors")),
   tokenOverview: () => apiFetch<TokenOverview>("/token/overview"),
   verify: (hash: string) => apiFetch<VerifyResult>(`/verify/${encodeURIComponent(hash)}`),
+};
+
+/* ----- payments (records an already-broadcast on-chain transfer) ----- */
+export const paymentsApi = {
+  // `from` is taken from the JWT server-side; fee is computed server-side. We
+  // send the human amount (not raw). Idempotency key = txHash (set internally).
+  create: (body: { to: string; amount: number; asset: Asset; txHash: string }) =>
+    apiFetch<CreatedPayment>("/payments", { method: "POST", body, idempotencyKey: body.txHash }),
+  // Poll until status flips pending → confirmed/failed (done by the backend indexer).
+  state: (txHash: string) => apiFetch<PaymentState>(`/payments/${encodeURIComponent(txHash)}`),
+};
+
+/* ----- invoice payment (public /pay/:id link; records an on-chain transfer) ----- */
+export const invoicesApi = {
+  // The payer sends the on-chain transfer, then posts the hash so the backend
+  // marks the invoice paid + creates a settlement. Public, no-auth.
+  pay: (id: string, txHash: string) =>
+    apiFetch<{ txHash: string; status?: PaymentStatus; chainId?: number }>(
+      `/invoices/${encodeURIComponent(id)}/pay`,
+      { method: "POST", body: { txHash }, idempotencyKey: txHash },
+    ),
 };

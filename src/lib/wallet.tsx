@@ -158,6 +158,13 @@ export function WalletProvider({ children }: { children: ReactNode }) {
         setSignedAddress(null);
         return;
       }
+      // Public payment links (/pay, /pay/:id) are no-auth: a payer just connects
+      // a wallet to pay. Don't force a SIWE sign-in, don't redirect into /app,
+      // and don't disconnect them if they decline to sign. (/app/* stays gated —
+      // "/app/pay" doesn't match "/pay".)
+      if (typeof window !== "undefined" && window.location.pathname.startsWith("/pay")) {
+        return;
+      }
       // Restore silently only if we ALSO still hold a non-expired JWT — a stored
       // session with a stale/missing token would 401 every authed call and fall
       // back to placeholder data. Otherwise drop through and re-sign.
