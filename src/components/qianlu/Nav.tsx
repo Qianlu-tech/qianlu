@@ -78,7 +78,7 @@ export function Nav() {
         style={{ borderRadius: 9999 }}
       >
         <Link href="/" className="flex items-center gap-2 pl-2 pr-3">
-          <img src="/qianlu-logo.png" alt="Qianlu" className="h-9 w-9 -my-1 select-none" draggable={false} />
+          <img src="/qianlu-logo.png" alt="Qianlu" className="h-9 w-9 -my-1 rounded-full object-cover select-none" draggable={false} />
           <div className="hidden sm:flex flex-col leading-tight">
             <span className="font-display text-lg font-semibold tracking-tight">Qianlu</span>
             <span className="text-[10px] font-mono tracking-[0.22em] text-muted-foreground -mt-0.5">
